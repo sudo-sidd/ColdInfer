@@ -2,9 +2,6 @@
 #include <cmath>
 #include <array>
 #include <chrono>
-#include <fstream>
-#include <string>
-#include <sys/resource.h>
 
 // 1. INCLUDE THE COMPILED WEIGHTS DIRECTLY
 // This file contains: const float fc1_weight[128][784] = { ... };
@@ -31,27 +28,6 @@ float probabilities[OUTPUT_SIZE];
 
 inline float static_relu(float x) {
     return x > 0.0f ? x : 0.0f;
-}
-
-// ----------------------------------------------------------
-// Read peak RSS (VmPeak) in KB directly from /proc/self/status
-// This is the high-water-mark of virtual address space used.
-// Falls back to getrusage VmRSS if /proc is unavailable.
-// ----------------------------------------------------------
-long get_peak_rss_kb() {
-    std::ifstream status_file("/proc/self/status");
-    std::string line;
-    while (std::getline(status_file, line)) {
-        if (line.rfind("VmRSS:", 0) == 0) {
-            long kb = 0;
-            sscanf(line.c_str(), "VmRSS: %ld", &kb);
-            return kb;
-        }
-    }
-    // Fallback: POSIX getrusage (ru_maxrss is KB on Linux)
-    struct rusage usage;
-    getrusage(RUSAGE_SELF, &usage);
-    return usage.ru_maxrss;
 }
 
 void run_inference() {
@@ -111,32 +87,14 @@ void run_inference() {
 int main() {
     std::cout << "Starting Bare-Metal ESP32-Optimized Pipeline Inference..." << std::endl;
     
-    // --- CPU time: user + sys before inference ---
-    struct rusage usage_before, usage_after;
-    getrusage(RUSAGE_SELF, &usage_before);
-
     auto start_time = std::chrono::high_resolution_clock::now();
     run_inference();
     auto end_time = std::chrono::high_resolution_clock::now();
-
-    getrusage(RUSAGE_SELF, &usage_after);
     
-    auto wall_duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
-
-    // CPU time in microseconds (user + sys delta)
-    long cpu_user_us = (usage_after.ru_utime.tv_sec  - usage_before.ru_utime.tv_sec)  * 1000000L
-                     + (usage_after.ru_utime.tv_usec - usage_before.ru_utime.tv_usec);
-    long cpu_sys_us  = (usage_after.ru_stime.tv_sec  - usage_before.ru_stime.tv_sec)  * 1000000L
-                     + (usage_after.ru_stime.tv_usec - usage_before.ru_stime.tv_usec);
-
-    // Peak RSS after inference
-    long peak_rss_kb = get_peak_rss_kb();
-
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+    
     std::cout << "PREDICTED DIGIT OUT: CONFIDENCE matches original targets." << std::endl;
-    std::cout << "INFERENCE_TIME_US:" << wall_duration.count() << std::endl;
-    std::cout << "PEAK_RSS_KB:"       << peak_rss_kb            << std::endl;
-    std::cout << "CPU_USER_US:"       << cpu_user_us            << std::endl;
-    std::cout << "CPU_SYS_US:"        << cpu_sys_us             << std::endl;
+    std::cout << "INFERENCE EXECUTION TIME: " << duration.count() << " us" << std::endl;
     
     return 0;
 }

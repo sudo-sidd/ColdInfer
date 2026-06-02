@@ -22,16 +22,3 @@ weights/*
 
 # Compiled C++ inference binary
 infer
-
-# TFLM source clone (large — rebuild with setup_tflm.sh)
-third_party/tflite-micro/
-
-# TFLM built artifacts (library + headers)
-third_party/tflm_build/
-
-# TFLM compiled benchmark binary
-tflm_bench
-
-# Exported .tflite and C-array model headers
-weights/*.tflite
-weights/*_tflm_model.h
