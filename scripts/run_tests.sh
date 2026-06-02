@@ -96,6 +96,14 @@ set -e
 # Move string execution to root dir of the engine
 cd "$(dirname "$0")/.."
 
+# Always use the venv Python so packages are available regardless of whether
+# the caller has activated the environment in their shell.
+PYTHON="$(pwd)/.venv/bin/python"
+if [ ! -f "$PYTHON" ]; then
+    echo "ERROR: .venv not found. Run 'uv sync' first."
+    exit 1
+fi
+
 LOG_FILE="performance_log.csv"
 
 # Initialize CSV with new baseline columns if it doesn't exist
@@ -130,7 +138,7 @@ for MODEL_NAME in "${!MODELS[@]}"; do
     
     if [ ! -f "$TARGET_WEIGHTS" ] || [ ! -f "$PT_FILE" ]; then
         echo "No existing weights or model checkpoint found. Initiating training pipeline..."
-        python python/train_export.py --model $PY_MODEL_ARG
+        $PYTHON python/train_export.py --model $PY_MODEL_ARG
         mv model_weights.h "$TARGET_WEIGHTS"
         mv test_image_data.h "$TARGET_IMAGE"
     fi
@@ -141,7 +149,7 @@ for MODEL_NAME in "${!MODELS[@]}"; do
     echo -e "\n============================================="
     echo "2. Running Baselines (PyTorch & TFLite)"
     echo "============================================="
-    BASELINE_OUT=$(python python/benchmark_baselines.py --model $PY_MODEL_ARG)
+    BASELINE_OUT=$($PYTHON python/benchmark_baselines.py --model $PY_MODEL_ARG)
     PT_TIME=$(echo "$BASELINE_OUT" | grep "PYTORCH_US" | cut -d':' -f2)
     TF_TIME=$(echo "$BASELINE_OUT" | grep "TFLITE_US" | cut -d':' -f2)
     echo "PyTorch Time: ${PT_TIME} us | TFLite Time: ${TF_TIME} us"
