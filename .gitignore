@@ -8,3 +8,17 @@ wheels/
 
 # Virtual environments
 .venv
+
+# ML datasets and downloaded data (auto-populated at runtime)
+data/*
+!data/README.txt
+
+# Compiled weight headers and staging files (auto-generated at runtime)
+weights/*
+!weights/README.txt
+
+# PyTorch model checkpoints
+*.pt
+
+# Compiled C++ inference binary
+infer

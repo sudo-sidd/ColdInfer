@@ -106,18 +106,110 @@ class KWS_MLP(nn.Module):
         return x
 
 def train_and_export_kws():
-    print("--- Training Keyword Spotting Model ---")
-    num_samples = 5000
-    X_train = torch.randn(num_samples, 1000)
-    y_train = torch.randint(0, 10, (num_samples,))
-    train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(X_train, y_train), batch_size=64, shuffle=True)
+    print("--- Training Keyword Spotting Model (Organic Data) ---")
+    import zipfile
+    import urllib.request
+    import wave
+    
+    # 1. Download and Extract the Mini Speech Commands Dataset
+    data_dir = './data'
+    zip_path = os.path.join(data_dir, 'mini_speech_commands.zip')
+    extract_dir = os.path.join(data_dir, 'mini_speech_commands')
+    
+    if not os.path.exists(extract_dir):
+        os.makedirs(data_dir, exist_ok=True)
+        url = "http://storage.googleapis.com/download.tensorflow.org/data/mini_speech_commands.zip"
+        print(f"Downloading mini speech commands dataset from {url}...")
+        try:
+            urllib.request.urlretrieve(url, zip_path)
+            print("Extracting dataset...")
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(data_dir)
+            os.remove(zip_path)
+            print("Dataset extracted successfully.")
+        except Exception as e:
+            print(f"Error downloading dataset: {e}")
+            if os.path.exists(zip_path):
+                os.remove(zip_path)
+            raise e
+
+    # 2. Scan classes and load WAV files
+    all_classes = sorted([d for d in os.listdir(extract_dir) if os.path.isdir(os.path.join(extract_dir, d)) and not d.startswith('_')])
+    print(f"Detected classes: {all_classes}")
     
     model = KWS_MLP()
     
     if os.path.exists("model_weights.KWS.pt"):
         print("Loading pre-trained KWS weights...")
         model.load_state_dict(torch.load("model_weights.KWS.pt"))
+        # We still need one test sample to export headers
+        class_path = os.path.join(extract_dir, all_classes[0])
+        wav_files = [f for f in os.listdir(class_path) if f.endswith('.wav')]
+        wav_path = os.path.join(class_path, wav_files[0])
+        with wave.open(wav_path, 'rb') as w:
+            frames = w.readframes(w.getnframes())
+            audio = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+            if len(audio) < 16000:
+                audio = np.pad(audio, (0, 16000 - len(audio)), 'constant')
+            else:
+                audio = audio[:16000]
+            test_input = torch.tensor(audio.reshape(1, 1000, 16).mean(axis=2), dtype=torch.float32)
+        y_test = torch.tensor([0], dtype=torch.long)
     else:
+        X_list = []
+        y_list = []
+        
+        # We will limit to 200 samples per class for training speed (total 1600 samples)
+        max_samples_per_class = 200
+        
+        for label_idx, class_name in enumerate(all_classes):
+            class_path = os.path.join(extract_dir, class_name)
+            wav_files = [f for f in os.listdir(class_path) if f.endswith('.wav')]
+            print(f"Loading class '{class_name}' ({len(wav_files)} files total, using first {max_samples_per_class})...")
+            
+            count = 0
+            for wav_file in wav_files:
+                if count >= max_samples_per_class:
+                    break
+                wav_path = os.path.join(class_path, wav_file)
+                try:
+                    with wave.open(wav_path, 'rb') as w:
+                        n_channels = w.getnchannels()
+                        sampwidth = w.getsampwidth()
+                        frames = w.readframes(w.getnframes())
+                        
+                        if sampwidth == 2:
+                            audio = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+                        elif sampwidth == 1:
+                            audio = (np.frombuffer(frames, dtype=np.uint8).astype(np.float32) - 128.0) / 128.0
+                        else:
+                            continue
+                        
+                        if n_channels > 1:
+                            audio = audio[::n_channels]
+                        
+                        # Pad or truncate to 16000 samples
+                        if len(audio) < 16000:
+                            audio = np.pad(audio, (0, 16000 - len(audio)), 'constant')
+                        else:
+                            audio = audio[:16000]
+                        
+                        # Downsample to 1000 features
+                        features = audio.reshape(1000, 16).mean(axis=1)
+                        X_list.append(features)
+                        y_list.append(label_idx)
+                        count += 1
+                except Exception as e:
+                    # Skip corrupt files
+                    continue
+                    
+        X_train = torch.tensor(np.array(X_list), dtype=torch.float32)
+        y_train = torch.tensor(np.array(y_list), dtype=torch.long)
+        
+        print(f"Loaded dataset: X_train shape = {X_train.shape}, y_train shape = {y_train.shape}")
+        
+        train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(X_train, y_train), batch_size=64, shuffle=True)
+        
         optimizer = optim.Adam(model.parameters(), lr=0.001)
         criterion = nn.CrossEntropyLoss()
         
@@ -128,16 +220,16 @@ def train_and_export_kws():
                 loss = criterion(model(data), target)
                 loss.backward()
                 optimizer.step()
-                if batch_idx % 20 == 0:
+                if batch_idx % 10 == 0:
                     print(f"KWS Epoch {epoch+1} [{batch_idx*len(data)}/{len(train_loader.dataset)}] Loss: {loss.item():.6f}")
         torch.save(model.state_dict(), "model_weights.KWS.pt")
+        
+        test_input = X_train[0:1]
+        y_test = y_train[0:1]
 
     model.eval()
-    X_test = torch.randn(1, 1000)
-    y_test = torch.randint(0, 10, (1,)) # We just generate a random one for header export
-    export_c_headers(model, X_test)
-        
-    print(f"KWS True Label: {y_test.item()}")
+    export_c_headers(model, test_input)
+    print(f"KWS Sample Label Index: {y_test.item()} (Class: {all_classes[y_test.item()]})")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
