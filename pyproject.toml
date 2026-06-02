@@ -1,0 +1,11 @@
+[project]
+name = "finalyearproject"
+version = "0.1.0"
+description = "MVP's and ideations for final year projects"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.4.6",
+    "torch>=2.12.0",
+    "torchvision>=0.27.0",
+]
