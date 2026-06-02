@@ -70,6 +70,7 @@ Latest benchmark results comparing ColdInfer against standard runtimes. Lower is
 | **PyTorch** | 885536 | 57 | 682 |
 | **TFLite** | 928984 | 8 | 8 |
 
+
 ## Project Roadmap & Timeline
 
 | Feature | Status | Target Date |

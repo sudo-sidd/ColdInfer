@@ -227,3 +227,8 @@ for MODEL_NAME in "${!MODELS[@]}"; do
     echo "$CURRENT_DATE,$MODEL_NAME,$INF_TIME,$PT_TIME,$TF_TIME,$TFLM_TIME,$INF_RSS,$PT_RSS,$TF_RSS,$TFLM_RSS,$INF_CPU_USER,$PT_CPU_USER,$TF_CPU_USER,$TFLM_CPU_USER,$INF_CPU_SYS,$PT_CPU_SYS,$TF_CPU_SYS,$TFLM_CPU_SYS,$TFLM_ARENA,$TEXT_SIZE,$BSS_SIZE,$DEC_SIZE" >> $LOG_FILE
     echo "Metrics logged to $LOG_FILE"
 done
+
+echo -e "\n============================================="
+echo "7. Updating README.md Benchmark Tables"
+echo "============================================="
+$PYTHON scripts/update_readme_stats.py
