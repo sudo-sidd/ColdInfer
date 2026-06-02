@@ -16,12 +16,12 @@ Defaults work out of the box. Ensure you have a standard GCC toolchain and Pytho
 ```bash
 git clone [https://github.com/sudo-sidd/ColdInfer.git](https://github.com/sudo-sidd/ColdInfer.git)
 cd ColdInfer
-python -m venv .venv
-source .venv/bin/activate
-pip install uv
-uv pip install -r pyproject.toml
+
+# Install dependencies and create the virtual environment automatically
+uv sync
+
+# Run the benchmark suite
 ./scripts/run_tests.sh
-```
 
 ### Architecture
 
