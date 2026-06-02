@@ -61,9 +61,9 @@ def train_and_export_mnist():
     
     model = MNIST_MLP()
     
-    if os.path.exists("model_weights.MNIST.pt"):
+    if os.path.exists("weights/model_weights.MNIST.pt"):
         print("Loading pre-trained MNIST weights...")
-        model.load_state_dict(torch.load("model_weights.MNIST.pt"))
+        model.load_state_dict(torch.load("weights/model_weights.MNIST.pt"))
     else:
         optimizer = optim.Adam(model.parameters(), lr=0.001)
         criterion = nn.CrossEntropyLoss()
@@ -77,7 +77,7 @@ def train_and_export_mnist():
                 optimizer.step()
                 if batch_idx % 200 == 0:
                     print(f"MNIST Epoch {epoch+1} [{batch_idx*len(data)}/{len(train_loader.dataset)}] Loss: {loss.item():.6f}")
-        torch.save(model.state_dict(), "model_weights.MNIST.pt")
+        torch.save(model.state_dict(), "weights/model_weights.MNIST.pt")
 
     model.eval()
     with torch.no_grad():
@@ -139,9 +139,9 @@ def train_and_export_kws():
     
     model = KWS_MLP()
     
-    if os.path.exists("model_weights.KWS.pt"):
+    if os.path.exists("weights/model_weights.KWS.pt"):
         print("Loading pre-trained KWS weights...")
-        model.load_state_dict(torch.load("model_weights.KWS.pt"))
+        model.load_state_dict(torch.load("weights/model_weights.KWS.pt"))
         # We still need one test sample to export headers
         class_path = os.path.join(extract_dir, all_classes[0])
         wav_files = [f for f in os.listdir(class_path) if f.endswith('.wav')]
@@ -222,7 +222,7 @@ def train_and_export_kws():
                 optimizer.step()
                 if batch_idx % 10 == 0:
                     print(f"KWS Epoch {epoch+1} [{batch_idx*len(data)}/{len(train_loader.dataset)}] Loss: {loss.item():.6f}")
-        torch.save(model.state_dict(), "model_weights.KWS.pt")
+        torch.save(model.state_dict(), "weights/model_weights.KWS.pt")
         
         test_input = X_train[0:1]
         y_test = y_train[0:1]

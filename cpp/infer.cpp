@@ -2,6 +2,9 @@
 #include <cmath>
 #include <array>
 #include <chrono>
+#include <fstream>
+#include <string>
+#include <sys/resource.h>
 
 // 1. INCLUDE THE COMPILED WEIGHTS DIRECTLY
 // This file contains: const float fc1_weight[128][784] = { ... };
@@ -28,6 +31,16 @@ float probabilities[OUTPUT_SIZE];
 
 inline float static_relu(float x) {
     return x > 0.0f ? x : 0.0f;
+}
+
+long get_rss_kb() {
+    std::ifstream f("/proc/self/status");
+    std::string line;
+    while (std::getline(f, line))
+        if (line.rfind("VmRSS:", 0) == 0) {
+            long kb = 0; sscanf(line.c_str(), "VmRSS: %ld", &kb); return kb;
+        }
+    struct rusage u; getrusage(RUSAGE_SELF, &u); return u.ru_maxrss;
 }
 
 void run_inference() {
@@ -86,15 +99,28 @@ void run_inference() {
 
 int main() {
     std::cout << "Starting Bare-Metal ESP32-Optimized Pipeline Inference..." << std::endl;
-    
+
+    struct rusage ru_before, ru_after;
+    getrusage(RUSAGE_SELF, &ru_before);
+
     auto start_time = std::chrono::high_resolution_clock::now();
     run_inference();
     auto end_time = std::chrono::high_resolution_clock::now();
-    
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
-    
+
+    getrusage(RUSAGE_SELF, &ru_after);
+
+    auto wall_us = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
+    long cpu_user_us = (ru_after.ru_utime.tv_sec  - ru_before.ru_utime.tv_sec)  * 1000000L
+                     + ru_after.ru_utime.tv_usec - ru_before.ru_utime.tv_usec;
+    long cpu_sys_us  = (ru_after.ru_stime.tv_sec  - ru_before.ru_stime.tv_sec)  * 1000000L
+                     + ru_after.ru_stime.tv_usec - ru_before.ru_stime.tv_usec;
+    long peak_rss_kb = get_rss_kb();
+
     std::cout << "PREDICTED DIGIT OUT: CONFIDENCE matches original targets." << std::endl;
-    std::cout << "INFERENCE EXECUTION TIME: " << duration.count() << " us" << std::endl;
-    
+    std::cout << "INFERENCE_TIME_US:" << wall_us      << std::endl;
+    std::cout << "PEAK_RSS_KB:"       << peak_rss_kb  << std::endl;
+    std::cout << "CPU_USER_US:"       << cpu_user_us  << std::endl;
+    std::cout << "CPU_SYS_US:"        << cpu_sys_us   << std::endl;
+
     return 0;
 }
