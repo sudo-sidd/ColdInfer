@@ -50,6 +50,26 @@ Treat this engine as an isolated execution environment. Because it relies entire
 
     - Track memory footprints inside performance_log.csv to ensure updates don't silently blow past your microcontroller's strict SRAM limits.
 
+## Performance Benchmarks
+
+Latest benchmark results comparing ColdInfer against standard runtimes. Lower is better for all metrics.
+
+### Keyword_Spotting_MLP_FP32
+| Engine | Memory RSS (KB) | Latency (µs) | CPU Time (µs) |
+|---|---|---|---|
+| **TFLM (Micro)** | 4320 | 62 | 62 |
+| **ColdInfer** | 4468 | 142 | 150 |
+| **PyTorch** | 885556 | 63 | 764 |
+| **TFLite** | 930652 | 9 | 9 |
+
+### MNIST_MLP_FP32
+| Engine | Memory RSS (KB) | Latency (µs) | CPU Time (µs) |
+|---|---|---|---|
+| **TFLM (Micro)** | 4208 | 50 | 50 |
+| **ColdInfer** | 4400 | 117 | 126 |
+| **PyTorch** | 885536 | 57 | 682 |
+| **TFLite** | 928984 | 8 | 8 |
+
 ## Project Roadmap & Timeline
 
 | Feature | Status | Target Date |
