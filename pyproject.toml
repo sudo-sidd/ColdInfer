@@ -1,7 +1,7 @@
 [project]
-name = "finalyearproject"
+name = "coldinfer"
 version = "0.1.0"
-description = "MVP's and ideations for final year projects"
+description = "MVP's and ideations for ColdInfer"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

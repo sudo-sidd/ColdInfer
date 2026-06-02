@@ -1,4 +1,4 @@
-## ***Custom TinyML Inference Engine (Low-Level Systems)***
+## ***ColdInfer: Custom TinyML Inference Engine (Low-Level Systems)***
 
 ### **Feasibility & Core Scope**
 
