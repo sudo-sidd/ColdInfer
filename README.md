@@ -1,6 +1,4 @@
-───────────────────────────────────────────────
-⊹ ࣪ ˖ ૮( ˶ᵔ ᵕ ᵔ˶ )っ  ColdInfer vers. 0.1.0
-───────────────────────────────────────────────
+─────────────────────────────────────────────── ⊹ ࣪ ˖ ૮( ˶ᵔ ᵕ ᵔ˶ )っ  ColdInfer vers. 0.1.0 ───────────────────────────────────────────────
 
 A lightweight, dependency-free runtime library written in pure C++ that takes pre-trained machine learning models, compresses their weights, and runs forward-pass inference directly on bare-metal hardware. No standard AI bloat, no dynamic allocation, just optimized math kernels and static memory pools.
 
