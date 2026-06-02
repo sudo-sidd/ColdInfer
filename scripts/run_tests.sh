@@ -108,7 +108,7 @@ LOG_FILE="performance_log.csv"
 
 # Initialize CSV — 22-column schema
 if [ ! -f $LOG_FILE ]; then
-    echo "Date,Model_Name,Custom_Infer_us,Custom_RSS_KB,Custom_CPU_User_us,Custom_CPU_Sys_us,PT_Infer_us,PT_RSS_KB,PT_CPU_User_us,PT_CPU_Sys_us,TFLite_Infer_us,TFLite_RSS_KB,TFLite_CPU_User_us,TFLite_CPU_Sys_us,TFLM_Infer_us,TFLM_RSS_KB,TFLM_CPU_User_us,TFLM_CPU_Sys_us,TFLM_Arena_KB,Binary_Text_B,Binary_BSS_B,Binary_Total_B" > $LOG_FILE
+    echo "Date,Model_Name,Custom_Infer_us,PT_Infer_us,TFLite_Infer_us,TFLM_Infer_us,Custom_RSS_KB,PT_RSS_KB,TFLite_RSS_KB,TFLM_RSS_KB,Custom_CPU_User_us,PT_CPU_User_us,TFLite_CPU_User_us,TFLM_CPU_User_us,Custom_CPU_Sys_us,PT_CPU_Sys_us,TFLite_CPU_Sys_us,TFLM_CPU_Sys_us,TFLM_Arena_KB,Binary_Text_B,Binary_BSS_B,Binary_Total_B" > $LOG_FILE
 fi
 
 TFLM_LIB="$(pwd)/third_party/tflm_build/libtensorflow-microlite.a"
@@ -119,7 +119,7 @@ else
     TFLM_AVAILABLE=0; echo "TFLM not built. Run ./scripts/setup_tflm.sh once to enable."
 fi
 
-mkdir -p weights
+mkdir -p weights build
 
 declare -A MODELS
 MODELS=(
@@ -172,12 +172,12 @@ for MODEL_NAME in "${!MODELS[@]}"; do
     echo -e "\n============================================="
     echo "3. Compiling C++ Inference Engine for $MODEL_NAME"
     echo "============================================="
-    g++ -O3 -std=c++17 -DINPUT_SIZE=$INPUT_SIZE -I./weights cpp/infer.cpp -o infer
+    g++ -O3 -std=c++17 -DINPUT_SIZE=$INPUT_SIZE -I./weights cpp/infer.cpp -o build/infer
     
     echo -e "\n============================================="
     echo "4. Running Custom C++ Inference ($MODEL_NAME)"
     echo "============================================="
-    INFER_OUT=$(./infer)
+    INFER_OUT=$(build/infer)
     echo "$INFER_OUT"
 
     echo -e "\n============================================="
@@ -189,7 +189,7 @@ for MODEL_NAME in "${!MODELS[@]}"; do
     INF_CPU_SYS=$(echo "$INFER_OUT"  | grep "^CPU_SYS_US:"        | cut -d':' -f2)
     echo "ColdInfer: ${INF_TIME} us | RSS ${INF_RSS} KB | CPU user ${INF_CPU_USER} us sys ${INF_CPU_SYS} us"
 
-    SIZE_OUT=$(size ./infer | tail -n 1)
+    SIZE_OUT=$(size build/infer | tail -n 1)
     TEXT_SIZE=$(echo $SIZE_OUT | awk '{print $1}')
     BSS_SIZE=$(echo $SIZE_OUT  | awk '{print $3}')
     DEC_SIZE=$(echo $SIZE_OUT  | awk '{print $4}')
@@ -213,8 +213,8 @@ for MODEL_NAME in "${!MODELS[@]}"; do
             -I./weights -I"$TFLM_INC" \
             cpp/tflm_bench.cpp \
             -L"$(dirname $TFLM_LIB)" -ltensorflow-microlite \
-            -o tflm_bench
-        TFLM_OUT=$(./tflm_bench)
+            -o build/tflm_bench
+        TFLM_OUT=$(build/tflm_bench)
         TFLM_TIME=$(echo "$TFLM_OUT"     | grep "^TFLM_TIME_US:"     | cut -d':' -f2)
         TFLM_RSS=$(echo "$TFLM_OUT"      | grep "^TFLM_PEAK_RSS_KB:" | cut -d':' -f2)
         TFLM_CPU_USER=$(echo "$TFLM_OUT" | grep "^TFLM_CPU_USER_US:" | cut -d':' -f2)
@@ -224,6 +224,6 @@ for MODEL_NAME in "${!MODELS[@]}"; do
     fi
 
     CURRENT_DATE=$(date '+%Y-%m-%d %H:%M:%S')
-    echo "$CURRENT_DATE,$MODEL_NAME,$INF_TIME,$INF_RSS,$INF_CPU_USER,$INF_CPU_SYS,$PT_TIME,$PT_RSS,$PT_CPU_USER,$PT_CPU_SYS,$TF_TIME,$TF_RSS,$TF_CPU_USER,$TF_CPU_SYS,$TFLM_TIME,$TFLM_RSS,$TFLM_CPU_USER,$TFLM_CPU_SYS,$TFLM_ARENA,$TEXT_SIZE,$BSS_SIZE,$DEC_SIZE" >> $LOG_FILE
+    echo "$CURRENT_DATE,$MODEL_NAME,$INF_TIME,$PT_TIME,$TF_TIME,$TFLM_TIME,$INF_RSS,$PT_RSS,$TF_RSS,$TFLM_RSS,$INF_CPU_USER,$PT_CPU_USER,$TF_CPU_USER,$TFLM_CPU_USER,$INF_CPU_SYS,$PT_CPU_SYS,$TF_CPU_SYS,$TFLM_CPU_SYS,$TFLM_ARENA,$TEXT_SIZE,$BSS_SIZE,$DEC_SIZE" >> $LOG_FILE
     echo "Metrics logged to $LOG_FILE"
 done

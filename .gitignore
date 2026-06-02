@@ -20,10 +20,5 @@ weights/*
 # PyTorch model checkpoints
 *.pt
 
-# Compiled C++ inference binary
-infer
-
 # TFLM build artifacts (rebuild with scripts/setup_tflm.sh)
-third_party/
-tflm_bench*
 third_party/
