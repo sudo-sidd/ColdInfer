@@ -24,6 +24,12 @@ uv sync
 ./scripts/run_tests.sh
 ```
 
+### ESP32 Deployment
+
+ColdInfer supports flashing the engine and model to an ESP32 for bare-metal edge inference, exposing the runtime over a local HTTP server.
+
+Please see the [ESP32 Deployment Guide](docs/ESP32_DEPLOYMENT.md) for full instructions on flashing the firmware, monitoring serial output, and testing the inference API over Wi-Fi.
+
 ### Architecture
 
 The project is split into two strict halves to enforce hardware independence on the execution side:

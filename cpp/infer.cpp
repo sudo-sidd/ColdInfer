@@ -4,8 +4,17 @@
 #include <chrono>
 #include <fstream>
 #include <string>
-#include <sys/resource.h>
+#include <string>
 
+// Include ESP32-specific headers if compiling on ESP32
+#ifdef ESP32
+#include "esp_timer.h"
+#include "esp_heap_caps.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#else
+#include <sys/resource.h>
+#endif
 // 1. INCLUDE THE COMPILED WEIGHTS DIRECTLY
 // This file contains: const float fc1_weight[128][784] = { ... };
 #include "model_weights.h" 
@@ -34,6 +43,11 @@ inline float static_relu(float x) {
 }
 
 long get_rss_kb() {
+#ifdef ESP32
+    // On ESP32, we can measure free heap to track SRAM usage
+    // This returns the total free memory in the internal SRAM
+    return heap_caps_get_free_size(MALLOC_CAP_8BIT) / 1024;
+#else
     std::ifstream f("/proc/self/status");
     std::string line;
     while (std::getline(f, line))
@@ -41,6 +55,7 @@ long get_rss_kb() {
             long kb = 0; sscanf(line.c_str(), "VmRSS: %ld", &kb); return kb;
         }
     struct rusage u; getrusage(RUSAGE_SELF, &u); return u.ru_maxrss;
+#endif
 }
 
 void run_inference() {
@@ -97,16 +112,31 @@ void run_inference() {
     }
 }
 
+#ifdef ESP32
+extern "C" void app_main() {
+#else
 int main() {
+#endif
     std::cout << "Starting Bare-Metal ESP32-Optimized Pipeline Inference..." << std::endl;
 
+#ifndef ESP32
     struct rusage ru_before, ru_after;
     getrusage(RUSAGE_SELF, &ru_before);
+#endif
 
+#ifdef ESP32
+    int64_t start_time = esp_timer_get_time();
+#else
     auto start_time = std::chrono::high_resolution_clock::now();
+#endif
+    
     run_inference();
+    
+#ifdef ESP32
+    int64_t end_time = esp_timer_get_time();
+    auto wall_us = end_time - start_time;
+#else
     auto end_time = std::chrono::high_resolution_clock::now();
-
     getrusage(RUSAGE_SELF, &ru_after);
 
     auto wall_us = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
@@ -114,13 +144,21 @@ int main() {
                      + ru_after.ru_utime.tv_usec - ru_before.ru_utime.tv_usec;
     long cpu_sys_us  = (ru_after.ru_stime.tv_sec  - ru_before.ru_stime.tv_sec)  * 1000000L
                      + ru_after.ru_stime.tv_usec - ru_before.ru_stime.tv_usec;
-    long peak_rss_kb = get_rss_kb();
+#endif
+
+    long mem_kb = get_rss_kb();
 
     std::cout << "PREDICTED DIGIT OUT: CONFIDENCE matches original targets." << std::endl;
     std::cout << "INFERENCE_TIME_US:" << wall_us      << std::endl;
-    std::cout << "PEAK_RSS_KB:"       << peak_rss_kb  << std::endl;
+#ifdef ESP32
+    std::cout << "FREE_HEAP_KB:"      << mem_kb       << std::endl;
+#else
+    std::cout << "PEAK_RSS_KB:"       << mem_kb       << std::endl;
     std::cout << "CPU_USER_US:"       << cpu_user_us  << std::endl;
     std::cout << "CPU_SYS_US:"        << cpu_sys_us   << std::endl;
+#endif
 
+#ifndef ESP32
     return 0;
+#endif
 }
