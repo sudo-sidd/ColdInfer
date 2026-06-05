@@ -22,6 +22,7 @@ uv sync
 
 # Run the benchmark suite
 ./scripts/run_tests.sh
+```
 
 ### Architecture
 
