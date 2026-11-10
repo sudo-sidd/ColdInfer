@@ -24,6 +24,41 @@ uv sync
 ./scripts/run_tests.sh
 ```
 
+### Live Simulation Dashboard
+
+The showcase dashboard runs the native C++ classifier in a simulated SRAM budget:
+
+```bash
+cd webapp && npm run dev -- --host 0.0.0.0
+uv run uvicorn backend.main:app --host 0.0.0.0 --port 8000
+```
+
+Open [http://localhost:3000](http://localhost:3000) and use **Simulation Lab** to
+switch between the MNIST digit model and keyword spotter. The lab renders the
+same baked input consumed by the C++ engine, class probabilities, prediction,
+latency, and the configured simulated SRAM cap. This is the recommended demo
+flow; the experimental chatbot is no longer part of the dashboard.
+
+### YOLO Smoke Test
+
+The repository includes the small public COCO8 detection smoke set under
+`data/yolo-coco8/` and a downloaded YOLO11n checkpoint (`yolo11n.pt`, ignored
+from source control). Run the same target used by the dashboard with:
+
+```bash
+uv run python scripts/smoke_test_yolo.py
+```
+
+The dashboard's default YOLO target is a quantized 160x160 simulated ESP32
+profile. It uses uint8 input, int8 detector output, fixed scratch accounting,
+and refuses an arena that cannot hold the tensors. The fixed envelope is about
+312 KB, so it fits within the 520 KB internal-SRAM profile. The reproducible artifact is generated with
+`uv run python scripts/quantize_yolo.py` and stored as an INT8-weight ONNX
+model. The current simulated execution retains float activations through
+ONNX Runtime; full integer ESP32 execution still requires wiring a
+Micro-compatible model plus convolution, detection-head, and NMS operators
+into the firmware.
+
 ### ESP32 Deployment
 
 ColdInfer supports flashing the engine and model to an ESP32 for bare-metal edge inference, exposing the runtime over a local HTTP server.

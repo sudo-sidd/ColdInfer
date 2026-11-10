@@ -51,7 +51,7 @@ class MNIST_MLP(nn.Module):
         x = self.fc3(x)
         return x
 
-def train_and_export_mnist():
+def train_and_export_mnist(epochs=1, force_retrain=False):
     print("--- Training MNIST Model ---")
     transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
     train_dataset = datasets.MNIST('./data', train=True, download=True, transform=transform)
@@ -61,7 +61,7 @@ def train_and_export_mnist():
     
     model = MNIST_MLP()
     
-    if os.path.exists("weights/model_weights.MNIST.pt"):
+    if os.path.exists("weights/model_weights.MNIST.pt") and not force_retrain:
         print("Loading pre-trained MNIST weights...")
         model.load_state_dict(torch.load("weights/model_weights.MNIST.pt"))
     else:
@@ -69,14 +69,17 @@ def train_and_export_mnist():
         criterion = nn.CrossEntropyLoss()
         
         model.train()
-        for epoch in range(1): # Reduced to 1 epoch for faster testing
+        for epoch in range(epochs):
+            epoch_loss = 0.0
             for batch_idx, (data, target) in enumerate(train_loader):
                 optimizer.zero_grad()
                 loss = criterion(model(data), target)
                 loss.backward()
                 optimizer.step()
+                epoch_loss = loss.item()
                 if batch_idx % 200 == 0:
                     print(f"MNIST Epoch {epoch+1} [{batch_idx*len(data)}/{len(train_loader.dataset)}] Loss: {loss.item():.6f}")
+            print(f"Epoch {epoch + 1}/{epochs} | loss={epoch_loss:.6f}", flush=True)
         torch.save(model.state_dict(), "weights/model_weights.MNIST.pt")
 
     model.eval()
@@ -105,7 +108,7 @@ class KWS_MLP(nn.Module):
         x = self.fc3(x)
         return x
 
-def train_and_export_kws():
+def train_and_export_kws(epochs=1, force_retrain=False):
     print("--- Training Keyword Spotting Model (Organic Data) ---")
     import zipfile
     import urllib.request
@@ -139,7 +142,7 @@ def train_and_export_kws():
     
     model = KWS_MLP()
     
-    if os.path.exists("weights/model_weights.KWS.pt"):
+    if os.path.exists("weights/model_weights.KWS.pt") and not force_retrain:
         print("Loading pre-trained KWS weights...")
         model.load_state_dict(torch.load("weights/model_weights.KWS.pt"))
         # We still need one test sample to export headers
@@ -214,14 +217,17 @@ def train_and_export_kws():
         criterion = nn.CrossEntropyLoss()
         
         model.train()
-        for epoch in range(1):
+        for epoch in range(epochs):
+            epoch_loss = 0.0
             for batch_idx, (data, target) in enumerate(train_loader):
                 optimizer.zero_grad()
                 loss = criterion(model(data), target)
                 loss.backward()
                 optimizer.step()
+                epoch_loss = loss.item()
                 if batch_idx % 10 == 0:
                     print(f"KWS Epoch {epoch+1} [{batch_idx*len(data)}/{len(train_loader.dataset)}] Loss: {loss.item():.6f}")
+            print(f"Epoch {epoch + 1}/{epochs} | loss={epoch_loss:.6f}", flush=True)
         torch.save(model.state_dict(), "weights/model_weights.KWS.pt")
         
         test_input = X_train[0:1]
@@ -234,9 +240,11 @@ def train_and_export_kws():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, choices=["mnist", "kws"], required=True)
+    parser.add_argument("--epochs", type=int, default=1)
+    parser.add_argument("--force-retrain", action="store_true")
     args = parser.parse_args()
     
     if args.model == "mnist":
-        train_and_export_mnist()
+        train_and_export_mnist(max(1, args.epochs), args.force_retrain)
     elif args.model == "kws":
-        train_and_export_kws()
+        train_and_export_kws(max(1, args.epochs), args.force_retrain)

@@ -4,6 +4,7 @@
 #include <chrono>
 #include <fstream>
 #include <string>
+#include <sstream>
 #include <string>
 
 // Include ESP32-specific headers if compiling on ESP32
@@ -17,8 +18,14 @@
 #endif
 // 1. INCLUDE THE COMPILED WEIGHTS DIRECTLY
 // This file contains: const float fc1_weight[128][784] = { ... };
-#include "model_weights.h" 
-#include "test_image_data.h" // Holds the raw sample image as a const array
+#ifndef MODEL_WEIGHTS_HEADER
+#define MODEL_WEIGHTS_HEADER "model_weights.h"
+#endif
+#ifndef TEST_IMAGE_HEADER
+#define TEST_IMAGE_HEADER "test_image_data.h"
+#endif
+#include MODEL_WEIGHTS_HEADER
+#include TEST_IMAGE_HEADER
 
 // Architecture constants
 #ifndef INPUT_SIZE
@@ -37,6 +44,7 @@ float arena_buffer_A[HIDDEN1_SIZE]; // 128 * 4 = 512 Bytes
 float arena_buffer_B[HIDDEN1_SIZE]; // 512 Bytes
 float logits_out[OUTPUT_SIZE];      // 40 Bytes
 float probabilities[OUTPUT_SIZE];
+float runtime_input[INPUT_SIZE];
 
 inline float static_relu(float x) {
     return x > 0.0f ? x : 0.0f;
@@ -66,7 +74,7 @@ void run_inference() {
         float sum = fc1_bias[i]; // Read directly from Flash ROM
         for (int j = 0; j < INPUT_SIZE; ++j) {
             // fc1_weight and input_image sit in Flash, saving SRAM
-            sum += fc1_weight[i][j] * input_image[j]; 
+            sum += fc1_weight[i][j] * runtime_input[j];
         }
         arena_buffer_A[i] = static_relu(sum);
     }
@@ -117,6 +125,14 @@ extern "C" void app_main() {
 #else
 int main() {
 #endif
+    for (int i = 0; i < INPUT_SIZE; ++i) runtime_input[i] = input_image[i];
+#ifndef ESP32
+    float value = 0.0f;
+    int index = 0;
+    while (index < INPUT_SIZE && (std::cin >> value)) {
+        runtime_input[index++] = value;
+    }
+#endif
     std::cout << "Starting Bare-Metal ESP32-Optimized Pipeline Inference..." << std::endl;
 
 #ifndef ESP32
@@ -148,7 +164,14 @@ int main() {
 
     long mem_kb = get_rss_kb();
 
-    std::cout << "PREDICTED DIGIT OUT: CONFIDENCE matches original targets." << std::endl;
+    int predicted = 0;
+    for (int i = 1; i < OUTPUT_SIZE; ++i) {
+        if (probabilities[i] > probabilities[predicted]) predicted = i;
+    }
+    std::cout << "PREDICTED_CLASS:" << predicted << std::endl;
+    for (int i = 0; i < OUTPUT_SIZE; ++i) {
+        std::cout << "PROB_" << i << ":" << probabilities[i] << std::endl;
+    }
     std::cout << "INFERENCE_TIME_US:" << wall_us      << std::endl;
 #ifdef ESP32
     std::cout << "FREE_HEAP_KB:"      << mem_kb       << std::endl;

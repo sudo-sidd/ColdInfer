@@ -56,7 +56,7 @@ for MODEL_NAME in "${!MODELS[@]}"; do
     
     if [ ! -f "$TARGET_WEIGHTS" ] || [ ! -f "$PT_FILE" ]; then
         echo "No existing weights or model checkpoint found. Initiating training pipeline..."
-        $PYTHON python/train_export.py --model $PY_MODEL_ARG
+        $PYTHON -u python/train_export.py --model $PY_MODEL_ARG --force-retrain
         mv model_weights.h "$TARGET_WEIGHTS"
         mv test_image_data.h "$TARGET_IMAGE"
     fi
@@ -67,7 +67,7 @@ for MODEL_NAME in "${!MODELS[@]}"; do
     echo -e "\n============================================="
     echo "2. Running Baselines (PyTorch & TFLite)"
     echo "============================================="
-    BASELINE_OUT=$($PYTHON python/benchmark_baselines.py --model $PY_MODEL_ARG 2>/dev/null)
+    BASELINE_OUT=$($PYTHON -u python/benchmark_baselines.py --model $PY_MODEL_ARG 2>/dev/null)
     PT_TIME=$(echo "$BASELINE_OUT"     | grep "^PYTORCH_US:"          | cut -d':' -f2)
     PT_RSS=$(echo "$BASELINE_OUT"      | grep "^PYTORCH_RSS_KB:"      | cut -d':' -f2)
     PT_CPU_USER=$(echo "$BASELINE_OUT" | grep "^PYTORCH_CPU_USER_US:" | cut -d':' -f2)
